@@ -23,11 +23,15 @@ Below is an example of a customer review:
 
 <p align="center"><img src='images/sample_review.png' alt='images/sample_review.png'></p>
 
-The reviews dataset will be comprised of the following information:
+We use the `google_play_scraper` library to scrape the reviews from Google Store, and `app_store_scraper` to scrape the reviews from Apple Store. Both libraries allow specifying a `country` parameter to access the corresponding country's app store. However, in the raw data, we observe some duplicates for apps that are present in both countries (eg. Deliveroo operates in both Singapore and Australia). The impact is negligible, as the duplicates made up for less than 5% of the total reviews. 
+
+The scraped reviews are then saved directly into pandas dataframe, which we subsequently separate into 2 Pickle (.pkl) dataset files, one for each country. Each dataset is comprised of the following information:
 - When a review is made
 - The app/platform
 - Rating
 - Content of the review
+
+In total, there are 659k reviews for Singapore, spanning from November 2013 to December 2021. Similarly, there are 626k reviews for Australia, spanning from September 2009 to December 2021.
 
 # Overview Of Food Delivery Apps' Reviews
 
