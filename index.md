@@ -129,12 +129,109 @@ This polarity method alone has ~70% accuracy. We now use the polarity as one fea
 **Model Performance and Discussion**  
 F1 score for each model in each scenario are shown below.
 
+| F1-Score                             | DecisionTree   | RandomForest | SVM          |
+| ----------------------               | -----------    | -----------  | -----------  |
+| Un-processed data                    | 0.69           | 0.76         | 0.77         |
+| Lemmatization Only                   | 0.70           | 0.77         | 0.78         |
+| Lemmatization and stopwords removal  | 0.72           | 0.74         | 0.74         |
+| Language detection                   | 0.70           | 0.79         | 0.80         |
+| Add feature                          | 0.75           | 0.81         | 0.82         |
 
 The comparison indicates that lemmatization has basically no impact on model performance. Non-English review removal (i.e. language detection) barely increases the performance. As discussed before, it could be that non-English reviews have largely been removed already when we set min_df in the TF-IDF vectorizer to 500.  
 Adding features to original feature vectors does boost the performance. However, one interesting finding is that removing stopwords has lowered the F1 score for Random Forest and SVC. See failure analysis for further discussion.
 
+## Deep Learning (BERT)
+Deep Learning, or more specifically, BERT (Bidirectional Encoder Representations from Transformers) is increasingly gaining popularity in the NLP space. BERT-base consists of 12 transformer layers, each transformer layer takes in a list of token embeddings and produces the same number of embeddings with the same hidden size (or dimensions) on the output. The output of the final transformer layer is used as the feature of the sequence to feed a classifier.  
+To fine-tune BERT to our reviews dataset, we start with tokenizing the text reviews, similar to previous approaches. The difference here is BERT has its own tokenizer, and thus instead of using regex, we invoke a BERT tokenizer from BERT’s pre-trained bert-base-uncased. Note that BERT has a max_length of 512, which means longer reviews will need to be truncated; although this has not seemed to impact the final performance.   
+Once the tokenization is ready, we create an optimizer object to fine-tune the classifier later on. There are many parameters that can be fine-tuned, but we focus on two main parameters: batch size, and learning rate.  
+Finally, we train our BERT classifier for 2 epochs. In each epoch, we will train our model and evaluate its performance on the validation set through the following process:  
+- Load tokenized data
+- Zero out gradients performed in the previous pass
+- Perform a forward pass to compute logits and loss
+- Perform a backward pass to compute gradients (loss.backward())
+- Clip the norm of the gradients to 1.0 to prevent exploding gradients
+- Update the model's parameters & learning rate
+- Compute loss and accuracy rate over the validation set  
+For the prediction step, the process is a lot simpler. We don’t have to perform a backward pass; instead, we would only need to perform a forward pass and apply softmax to calculate probabilities.
+
+<p align="center"><img src='images/bert_roc.png' alt='images/bert_roc.png'></p>
+
+The result is extremely promising. BERT outperformed our fine-tuned Logistic Regression, achieving an astonishing 0.98 accuracy and 0.93 macro F1-score. More importantly, this result is achieved by training on only 100k reviews, a much smaller dataset as compared to the original dataset that’s trained on other algorithms. On the other hand, however, the training time also took significantly longer, with 1 epoch & 1 GPU taking about 1 hour to complete, as compared to other algorithms which only took a fraction of the time. Regardless, the result has demonstrated the potential of deep learning approaches on NLP tasks, including, but certainly not limited to sentiment analysis.  
+
+## Failure Analysis
+The figure below shows a few examples of misclassifications under Logistic Regression:  
+
+<p align="center"><img src='images/misclassifications.png' alt='images/misclassifications.png'></p>
+
+We can see that our Singapore dataset contains many reviews that are not in English; however, this would not impact the model performance. To illustrate the impact of non-English reviews, we rerun the same algorithms on the dataset, but with non-English reviews filtered out, using SpaCy’s spacy_langdetect module. While there seems to be a slight bump in F1-score for some algorithms, the increase in both F1-score and accuracy isn’t significant, even though the language detector has found at least 30% of the reviews to be non-English. It’s likely that many of the non-English tokens do not achieve the minimum frequency set during the TF-IDF stage, and get filtered out.   
+For SVM &  RandomForest algorithms, applying stopwords removal degraded the performance slightly. One possible explanation is that when removing some words from the list of common English stopwords, such as ‘no’ and ‘not’, the sentiment of a sentence can be completely changed. For example,  
+
+<p align="center"><img src='images/misclassifications.png' alt='images/misclassifications.png'></p>
+
+The original review which explicitly stated the disappointment towards this app has been twisted into a neutral, or even slightly positive tone.  
+In some other misclassifications, we can see that certain reviews contain negation. For example, a customer may write “No good” instead of “Bad”. This is a potential downside of the Bag-of-words approach, where tokens are not considered in a particular context. Including bigrams and unigrams has mitigated some of these cases, but there are possibly more cases that are not captured.   
+Last but not least, misclassifications could be due to a customer’s way of ranking. This especially happens around the 3-star ratings, where a customer may not necessarily express a positive sentiment, but decides to give a high rating anyway. For instance:  
+
+<p align="center"><img src='images/misclassifications.png' alt='images/misclassifications.png'></p>
+
+This is a review in the test dataset that all three models fail to predict correctly. The actual label of this review is positive, however, by reading this, it is noticeable that this has a neutral to the negative tone. The problem behind this is that people sometimes express mixed feelings about an app yet give an acceptable rating generously, which creates a gap between the actual sentiment and rating. A properly labeled training dataset could help to mitigate this problem, although, in reality, it is challenging to create a domain-specific, labeled dataset without involving significant human effort.
 
 # 5. Topic Modelling
+Over time, there were tons of reviews provided by the food delivery app user. As mentioned in the Data Source section, the number of reviews over the year is massive, there were a total of 659k reviews for Singapore and 626k reviews for Australia. When dealing with this amount of review, it is difficult to extract meaningful insights quickly and act on them. This is where topic modeling can offer a big help. With topic modeling, we will be able to extract key themes (topics) from all the reviews and assign the appropriate theme(s) to each topic. From there, we will be able to conduct some basic statistical analysis to see which theme is the dominant one within the review. As a result, this will help the app developers to understand the reviews quickly and start planning for the next step. (For example, resolving some issues if there is one, reporting key pain points to the company for improvement, etc.)  
+The unsupervised learning task used the same dataset as the supervised learning task. Please refer to the “Data Source” section for more details about the dataset.  
+## Latent Dirichlet Association (LDA) and Non-Negative Matrix Factorization (NMF)
+There are two common popular methods we can use for the topic modeling task, including Latent Dirichlet Association (LDA) and Non-Negative Matrix Factorization (NMF). For the project we used the LDA model due to a few reasons:
+- LDA assumes each document (review in our case) has multiple topics, while NMF calculates how well each document fits each topic, rather than assuming a document has multiple topics. For this project, a review could be related to multiple topics in reality.
+- LDA works better with longer texts, while NMF works best for shorter texts. In our dataset, approx. 14% of the reviews have more than 30 words. Therefore, we want to use a model that can model these reviews as well.
+### Data pre-processing
+To improve the performance as well as remove unnecessary tokens in the tokenization stage, we have done a few pre-processing steps on the test data using the Spacy library, detailed as follows:  
+- Remove stop words and punctuation using Spacy default stop word list
+- Remove common words/phrases (e.g the name of the food delivery app, emotional expression words like good, nice, ok, etc.)
+- Lemmatization
+- Lower casing all words
+The overarching objective of the data pre-processing step is to remove words that are meaningless to the model in extracting topics (via stop words and common words removal), and also combine the words in the same token if they have the same meanings (achieve by lower casing and lemmatizing words).  
+### Vectorization
+Vectorization is a required tokenization step before we feed the data to LDA model training. Here TFIDF is used for the task. Compared to another vectorization approach – count vectorization, tfidf can evaluate how relevant a word is to a document in a collection of documents, which is certainly a better feature representation approach. The scikit-learn library is used to perform the tfidf vectorization on the review text data. Since we have used the spacy library to pre-process the text already, we will skip the tokenizer step here.  
+There are 2 key parameters we can tune in the tfidf vectorization stage – ngram_range and min_df.  
+- ngram_range – the default setting is (1,1) which means unigram only. We could use bigram and trigram by adjusting the parameter here. However, using bigram could dramatically increase the number of features in the tfidf matrix, which leads to a higher computational cost. The gains in performance probably won’t outweigh the computational cost here. Therefore, we decided to use the default setting unigram only.
+- min_df – this parameter is used to ignore terms that have a document frequency strictly lower than the given min-df value. To remove rare/uncommon words, we set min_df to 100.
+### Model training and evaluation
+The LDA model from Sickit-learn is used in model training. We have altered a few parameters to optimize the training process, including:  
+- Setting learning_method to “online”. According to the official documentation, it is better to use “online” for better speed if the data size is large.
+- Setting n_jobs to 15 to implement multi-core processing to speed up the training process.
+One key parameter to tune in here is the n_components parameter which specifies the number of themes/topics we want to extract from the model. To find the best value, we started with the value of 2, evaluate the result and then adjust the parameter again until we find the best value. pyLDAvis package will be used to evaluate the model performance. pyLDAvis provide an intertopic distance map (via multidimensional scaling) to visualize the extracted topics. The rule of thumb is here is to find the output that has a max value of n_components but the topics are further apart from each other on the map.   
+It is also worth mentioning that we have tried to evaluate the model using log-likelihood and perplexity scores. These metrics were perceived as the most popular metrics is measuring the performance of the model where the log-likelihood higher the better and perplexity is lower the better. We found that the model with the lowest n_component always performs the best on these matrics. As a result, we decided to rely on the intertopic distance map and human judgment for evaluation.  
+Since we have a large dataset, training the model using the full data set will need approx. ~30 mins for a single run. Therefore, we decided to use 10% of the data to find the best n_components value first. As a result, we landed at 8 topics for both Singapore reviews dataset and Australia reviews dataset. The pyLDAvis intertopic distance map and the top 10 keywords per topic are shown below:  
+*Topic modeling of Singapore reviews with n_components = 8*  
+
+<p align="center"><img src='images/sg_topic_modelling.png' alt='images/sg_topic_modelling.png'></p>
+
+*Topic modeling of Australia reviews with n_components = 8*  
+
+<p align="center"><img src='images/au_topic_modelling.png' alt='images/au_topic_modelling.png'></p>
+
+### Topic Evaluation
+In addition to looking at the top 10 key terms in each topic, we also sampled a few reviews that highly relevant to each topic, to better understand the context and theme behind the topics. As a result, we assigned the following themes to the topics extracted from Singapore and Australia models.  
+
+<p align="center"><img src='images/topics_list.png' alt='images/topics_list.png'></p>
+
+### Key Takeaway
+The model will then be used to transform the review text data using the lda_model.transform() function. It will output an array with the size of {no. of review} x {no. of topic} where each review will be assigned a set of values that indicates how relevant it is to each topic. For example, the review below was assigned a set of values, and the highest value is 0.6859 which is in the topic_0 column, this means that the below review is most relevant to topic_0, and topic_0 is the dominant topic of this review  
+
+<p align="center"><img src='images/topics.png' alt='images/topics.png'></p>
+
+Below chart were created based on the dominant topic assignment approach as described above.  
+
+<p align="center"><img src='images/sg_themes.png' alt='images/sg_themes.png'></p>
+<p align="center"><img src='images/au_themes.png' alt='images/au_themes.png'></p>
+
+In general, the food delivery app reviews from Singapore and Australia shared some commonalities where order placing is the most concerned topic in both reviews. Interestingly, Singapore reviewers tend to have more interest/concern on the app overall UI/functions, whereas Australian users tend to be more interested/concerned on the delivery aspects in general.  
+
+## Failure Analysis
+During the topic modeling task, there are a few issues that we need to be aware of:  
+- Some topics are highly related to each other but are still identified as 2 separate topics in the model. For example, topic 2 and topic 5 in the Singapore review model. They are describing how good the app is but using a slightly different expression. Another example would be topic 5 and 6 in the Australia dataset. By looking at the keywords, these topics are highly relevant to each other. topic 5 has a keyword ‘quick’ and topic 6 has a keyword ‘fast’. These 2 words are the same in the food delivery domain, but LDA model could not merge these words.
+- We noticed that there is a considerable amount of non-English reviews in the dataset that we were not able to filter out because of no packages that can filter it out with a high accuracy level. Also, many non-English reviews contain English text which makes it difficult to identify it.
+- We were not able to assign a theme to topic 8 in the Singapore reviews model, as the top 10 key terms there seem irrelevant to each other at all.
 
 # 6. Discussion and Next Steps
 - For supervised learning, feature engineering is important to achieve high performance. Our project shows that with a robust feature engineering process, we can achieve relatively high baseline performance.
@@ -144,7 +241,6 @@ Adding features to original feature vectors does boost the performance. However,
 - The topics extracted from the model look reasonable to us but there is still room for improvement. If time/resources are allowed, we would like to explore the gensim package which is a more robust NLP package than scikit-learn. In addition, the LDA2vec model may be able to help us to tackle the issue around reviewers using different words to represent the same meanings. The LDA2vec model leverages the power of word2vec as the feature representation approach.
 - In terms of potential ethical issues, one possible issue that might arise is if we choose to adopt language detection as part of our feature processing. By filtering non-English reviews, we could be training models that are more biased towards English speakers. This is especially apparent for food delivery platforms that operate in countries where there are non-English speakers (e.g Malaysia). 
 - Another ethical consideration for deploying these models would be the process of collecting and storing reviews data. Reviews data on both Google App Store and Apple Store could contain personal information such as a person’s name and email address, and if these datasets are not stored and processed properly (e.g drop PII columns or restrict access), there could be a risk of exposing sensitive data.
-
 
 # 7. Statement Of Work
 This project is a collaborative effort with equal participation from everyone, specifically:
