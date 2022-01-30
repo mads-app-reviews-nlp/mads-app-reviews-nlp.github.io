@@ -101,7 +101,8 @@ In the previous section, we focus on how performances vary when adapting differe
 Pre-process review data with following methods respectively:
 - Word lemmatization
 - Stopwords removal
-- Language detection  
+- Language detection
+
 After which, splitting train, test datasets, vectorizing each dataset. Add columns to vectorized data as an additional feature when necessary, then fit each model with training data. Lastly, compare the F1-score of each model in different scenarios.  
 **Baseline scenario**  
 Feed vectorized training data directly to each model without any pre-processing.  
