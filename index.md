@@ -184,6 +184,7 @@ The unsupervised learning task used the same dataset as the supervised learning 
 There are two common popular methods we can use for the topic modeling task, including Latent Dirichlet Association (LDA) and Non-Negative Matrix Factorization (NMF). For the project we used the LDA model due to a few reasons:
 - LDA assumes each document (review in our case) has multiple topics, while NMF calculates how well each document fits each topic, rather than assuming a document has multiple topics. For this project, a review could be related to multiple topics in reality.
 - LDA works better with longer texts, while NMF works best for shorter texts. In our dataset, approx. 14% of the reviews have more than 30 words. Therefore, we want to use a model that can model these reviews as well.  
+
 ### Data pre-processing
 To improve the performance as well as remove unnecessary tokens in the tokenization stage, we have done a few pre-processing steps on the test data using the Spacy library, detailed as follows:  
 - Remove stop words and punctuation using Spacy default stop word list
@@ -191,11 +192,13 @@ To improve the performance as well as remove unnecessary tokens in the tokenizat
 - Lemmatization
 - Lower casing all words
 The overarching objective of the data pre-processing step is to remove words that are meaningless to the model in extracting topics (via stop words and common words removal), and also combine the words in the same token if they have the same meanings (achieve by lower casing and lemmatizing words).  
+
 ### Vectorization
 Vectorization is a required tokenization step before we feed the data to LDA model training. Here TFIDF is used for the task. Compared to another vectorization approach – count vectorization, tfidf can evaluate how relevant a word is to a document in a collection of documents, which is certainly a better feature representation approach. The scikit-learn library is used to perform the tfidf vectorization on the review text data. Since we have used the spacy library to pre-process the text already, we will skip the tokenizer step here.  
 There are 2 key parameters we can tune in the tfidf vectorization stage – ngram_range and min_df.
 - ngram_range – the default setting is (1,1) which means unigram only. We could use bigram and trigram by adjusting the parameter here. However, using bigram could dramatically increase the number of features in the tfidf matrix, which leads to a higher computational cost. The gains in performance probably won’t outweigh the computational cost here. Therefore, we decided to use the default setting unigram only.
 - min_df – this parameter is used to ignore terms that have a document frequency strictly lower than the given min-df value. To remove rare/uncommon words, we set min_df to 100.  
+
 ### Model training and evaluation
 The LDA model from Sickit-learn is used in model training. We have altered a few parameters to optimize the training process, including:
 - Setting learning_method to “online”. According to the official documentation, it is better to use “online” for better speed if the data size is large.
