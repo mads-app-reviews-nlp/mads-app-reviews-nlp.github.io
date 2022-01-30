@@ -59,12 +59,13 @@ With this, we created a TF-IDF vectorizer that excludes English stopwords and ha
 <p align="center"><img src='images/tfidf_vect.png' alt='images/tfidf_vect.png'></p>
 
 Once the vectorizer is ready and the train dataset is transformed, we started training our Naive Bayes and Logistic Regression classifiers. The baseline results are shown below. Note that we have also run a few dummy classifiers (Uniform & Most Common), and confirmed that these algorithms outperformed these dummy classifiers.
-| Algorithm                | Description | Description |
-| ----------------------   | ----------- | ----------- |
-| MultinomialNB            | 0.85        | 0.88        |
-| BernoulliNB              | 0.79        | 0.85        |
-| ComplementNB             | 0.83        | 0.86        |
-| Logistic Regression      | 0.85        | 0.87        |
+
+| Algorithm                | Macro F1-Score | Accuracy |
+| ----------------------   | -----------    | ----------- |
+| MultinomialNB            | 0.85           | 0.88        |
+| BernoulliNB              | 0.79           | 0.85        |
+| ComplementNB             | 0.83           | 0.86        |
+| Logistic Regression      | 0.85           | 0.87        |
 
 The baseline results are quite promising, with both MultinomialNB and Logistic Regression achieving 0.85 on macro F1-score. This means that the bag-of-word approach is a rather solid approach for sentiment classification. It's also interesting to see that while MultinomialNB has a rather balanced number of false positives and false negatives, BernoulliNB and ComplementNB are different. BernoulliNB has a much higher number of false positives, while ComplementNB has a much higher number of false negatives.  
 #### Fine-tuning
@@ -82,7 +83,55 @@ With the TF-IDF tuning results, we also use this as the foundation to tune the `
 
 ### Word Embeddings
 This section explores the use of word embeddings as feature extraction. We'll be working with dense representations of documents instead of the bag-of-words representations used earlier. To do this, we'll use the average (or mean) word vector of a document and classify from those representations. As a first step, we tokenize the reviews using the same regex logic. However, since we're going to be computing an average word vector, we remove stop words. Here, we'll use NLTK's list of English stop words. Since these words shouldn't affect our classification decision, we can remove them to avoid adding any noise they might cause. 
-Our word vectors are constructed using 4 different corpora - our entire text reviews corpus, as well as gensim’s pre-trained corpora, namely wordvec-google-news-300, glove100, and glove300. The table below documents the performance result of each corpus when generating word embeddings and training them with Logistic Regression:
+Our word vectors are constructed using 4 different corpora - our entire text reviews corpus, as well as gensim’s pre-trained corpora, namely `wordvec-google-news-300`, `glove100`, and `glove300`. The table below documents the performance result of each corpus when generating word embeddings and training them with Logistic Regression:
+
+| Corpus                   | Macro F1-Score | Accuracy |
+| ----------------------   | -----------    | ----------- |
+| Text Reviews Dataset     | 0.87           | 0.86        |
+| Google News 300          | 0.86           | 0.85        |
+| Glove 100                | 0.80           | 0.79        |
+| Glove 300                | 0.82           | 0.81        |
+
+The performance overall is slightly underperforming as compared to BOW approach, but it is interesting to see that gensim’s corpora perform almost just as well as using our dataset, especially the google-news-300 corpus. Having these texts represented as word vectors can also be useful for many other cases, including but not limited to topic modeling and document similarity. The promising performance on gensim’s out-of-the-box corpus also means that companies who would like to set up NLP models without having access to a lot of training data can potentially leverage this approach.
+
+## SVM & Decision Trees, RandomForest
+Support Vector Machine (SVM), and Random Forest are both simple supervised machine algorithms used for text classification purposes. In this section, we use these algorithms as well as the Decision Tree algorithm.
+In the previous section, we focus on how performances vary when adapting different techniques - BoW and word embeddings. The focus of this section is to apply multiple ways of text pre-processing and compare the performance across methods and models. Only word embeddings with TD-IDF are used for this purpose.
+**Overall process**  
+Pre-process review data with following methods respectively:
+- Word lemmatization
+- Stopwords removal
+- Language detection
+After which, splitting train, test datasets, vectorizing each dataset. Add columns to vectorized data as an additional feature when necessary, then fit each model with training data. Lastly, compare the F1-score of each model in different scenarios.  
+**Baseline scenario**  
+Feed vectorized training data directly to each model without any pre-processing.
+**Word Lemmatization**  
+To reduce some noises caused by word forms, we want to group the inflected forms as a single word. The common way to do it is stemming and lemmatization. Both ways are tried out before we decide to use lemmatization. Examples shown below:
+
+<p align="center"><img src='images/lemmatization.png' alt='images/lemmatization.png'></p>
+
+We can see that lemmatization gives more information on the context of words while stemming has some words truncated into incomplete syllables that do not even make sense. Thus we adopt the lemmatization method using NLTK building lemmatizer.
+**Stopwords removal**  
+Using NLTK’s list of English stopwords.  
+**Language detection**  
+To filter out non-English reviews, language detection is used. In the previous section, it is done by SpaCy’s lang-detect module. The problem with that is it takes a long time to run and has an unsatisfying detection result. For instance:
+
+<p align="center"><img src='images/lang_detect.png' alt='images/lang_detect.png'></p>
+
+The detector mistakenly classifies some English reviews as other languages, thereby filtering out more reviews than it should have. To solve this issue, an alternative way of filtering out non-English words is used. In the UTF-8 encoding scheme (same for ASCII and other schemes), each character has a UTF-8 sequence number. All English alphabetic, digits and common punctuations, space, lie in a continuous range in the sequence. Knowing that range, filtering out non-English characters (like ‘è’) can be simply achieved by iterating through all characters in each string of review and comparing each character with the beginning and ending character of this range. If any character out of this range is detected, that review is taken as a non-English review.  
+The optimized language detector works fine, and the runtime has been drastically reduced. The non-English result is shown below:
+
+<p align="center"><img src='images/sent_polar.png' alt='images/sent_polar.png'></p>
+
+**Feature Addition**
+So far we have only been using vectors from TF-IDF as features. To investigate if additional features will boost the performance, a new API is introduced. TextBlob is a Python library for processing textual data, which provides a simple API for diving into common natural language processing tasks such as sentiment analysis, classification, and more. We use the polarity API under the sentiment module. Polarity ranges from (-1,1). If polarity is >0, it is considered positive, <0 -is considered negative and ==0 is considered neutral.   
+This polarity method alone has ~70% accuracy. We now use the polarity as one feature and concatenate that onto the TD-IDF vectorizer results.  
+**Model Performance and Discussion**  
+F1 score for each model in each scenario are shown below.
+
+
+The comparison indicates that lemmatization has basically no impact on model performance. Non-English review removal (i.e. language detection) barely increases the performance. As discussed before, it could be that non-English reviews have largely been removed already when we set min_df in the TF-IDF vectorizer to 500.  
+Adding features to original feature vectors does boost the performance. However, one interesting finding is that removing stopwords has lowered the F1 score for Random Forest and SVC. See failure analysis for further discussion.
 
 
 # 5. Topic Modelling
