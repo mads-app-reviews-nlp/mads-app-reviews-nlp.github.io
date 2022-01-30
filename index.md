@@ -96,15 +96,15 @@ The performance overall is slightly underperforming as compared to BOW approach,
 
 ## SVM & Decision Trees, RandomForest
 Support Vector Machine (SVM), and Random Forest are both simple supervised machine algorithms used for text classification purposes. In this section, we use these algorithms as well as the Decision Tree algorithm.
-In the previous section, we focus on how performances vary when adapting different techniques - BoW and word embeddings. The focus of this section is to apply multiple ways of text pre-processing and compare the performance across methods and models. Only word embeddings with TD-IDF are used for this purpose.
+In the previous section, we focus on how performances vary when adapting different techniques - BoW and word embeddings. The focus of this section is to apply multiple ways of text pre-processing and compare the performance across methods and models. Only word embeddings with TD-IDF are used for this purpose.  
 **Overall process**  
 Pre-process review data with following methods respectively:
 - Word lemmatization
 - Stopwords removal
-- Language detection
+- Language detection  
 After which, splitting train, test datasets, vectorizing each dataset. Add columns to vectorized data as an additional feature when necessary, then fit each model with training data. Lastly, compare the F1-score of each model in different scenarios.  
 **Baseline scenario**  
-Feed vectorized training data directly to each model without any pre-processing.
+Feed vectorized training data directly to each model without any pre-processing.  
 **Word Lemmatization**  
 To reduce some noises caused by word forms, we want to group the inflected forms as a single word. The common way to do it is stemming and lemmatization. Both ways are tried out before we decide to use lemmatization. Examples shown below:
 
@@ -123,7 +123,7 @@ The optimized language detector works fine, and the runtime has been drastically
 
 <p align="center"><img src='images/sent_polar.png' alt='images/sent_polar.png'></p>
 
-**Feature Addition**
+**Feature Addition**  
 So far we have only been using vectors from TF-IDF as features. To investigate if additional features will boost the performance, a new API is introduced. TextBlob is a Python library for processing textual data, which provides a simple API for diving into common natural language processing tasks such as sentiment analysis, classification, and more. We use the polarity API under the sentiment module. Polarity ranges from (-1,1). If polarity is >0, it is considered positive, <0 -is considered negative and ==0 is considered neutral.   
 This polarity method alone has ~70% accuracy. We now use the polarity as one feature and concatenate that onto the TD-IDF vectorizer results.  
 **Model Performance and Discussion**  
@@ -163,7 +163,7 @@ The figure below shows a few examples of misclassifications under Logistic Regre
 
 <p align="center"><img src='images/misclassifications.png' alt='images/misclassifications.png'></p>
 
-We can see that our Singapore dataset contains many reviews that are not in English; however, this would not impact the model performance. To illustrate the impact of non-English reviews, we rerun the same algorithms on the dataset, but with non-English reviews filtered out, using SpaCy’s spacy_langdetect module. While there seems to be a slight bump in F1-score for some algorithms, the increase in both F1-score and accuracy isn’t significant, even though the language detector has found at least 30% of the reviews to be non-English. It’s likely that many of the non-English tokens do not achieve the minimum frequency set during the TF-IDF stage, and get filtered out.   
+We can see that our Singapore dataset contains many reviews that are not in English; however, this would not impact the model performance. To illustrate the impact of non-English reviews, we rerun the same algorithms on the dataset, but with non-English reviews filtered out, using SpaCy’s `spacy_langdetect` module. While there seems to be a slight bump in F1-score for some algorithms, the increase in both F1-score and accuracy isn’t significant, even though the language detector has found at least 30% of the reviews to be non-English. It’s likely that many of the non-English tokens do not achieve the minimum frequency set during the TF-IDF stage, and get filtered out.   
 For SVM &  RandomForest algorithms, applying stopwords removal degraded the performance slightly. One possible explanation is that when removing some words from the list of common English stopwords, such as ‘no’ and ‘not’, the sentiment of a sentence can be completely changed. For example,  
 
 <p align="center"><img src='images/remove_stopwords.png' alt='images/remove_stopwords.png'></p>
@@ -182,7 +182,7 @@ The unsupervised learning task used the same dataset as the supervised learning 
 ## Latent Dirichlet Association (LDA) and Non-Negative Matrix Factorization (NMF)
 There are two common popular methods we can use for the topic modeling task, including Latent Dirichlet Association (LDA) and Non-Negative Matrix Factorization (NMF). For the project we used the LDA model due to a few reasons:
 - LDA assumes each document (review in our case) has multiple topics, while NMF calculates how well each document fits each topic, rather than assuming a document has multiple topics. For this project, a review could be related to multiple topics in reality.
-- LDA works better with longer texts, while NMF works best for shorter texts. In our dataset, approx. 14% of the reviews have more than 30 words. Therefore, we want to use a model that can model these reviews as well.
+- LDA works better with longer texts, while NMF works best for shorter texts. In our dataset, approx. 14% of the reviews have more than 30 words. Therefore, we want to use a model that can model these reviews as well.  
 ### Data pre-processing
 To improve the performance as well as remove unnecessary tokens in the tokenization stage, we have done a few pre-processing steps on the test data using the Spacy library, detailed as follows:  
 - Remove stop words and punctuation using Spacy default stop word list
@@ -192,14 +192,14 @@ To improve the performance as well as remove unnecessary tokens in the tokenizat
 The overarching objective of the data pre-processing step is to remove words that are meaningless to the model in extracting topics (via stop words and common words removal), and also combine the words in the same token if they have the same meanings (achieve by lower casing and lemmatizing words).  
 ### Vectorization
 Vectorization is a required tokenization step before we feed the data to LDA model training. Here TFIDF is used for the task. Compared to another vectorization approach – count vectorization, tfidf can evaluate how relevant a word is to a document in a collection of documents, which is certainly a better feature representation approach. The scikit-learn library is used to perform the tfidf vectorization on the review text data. Since we have used the spacy library to pre-process the text already, we will skip the tokenizer step here.  
-There are 2 key parameters we can tune in the tfidf vectorization stage – ngram_range and min_df.  
+There are 2 key parameters we can tune in the tfidf vectorization stage – ngram_range and min_df.
 - ngram_range – the default setting is (1,1) which means unigram only. We could use bigram and trigram by adjusting the parameter here. However, using bigram could dramatically increase the number of features in the tfidf matrix, which leads to a higher computational cost. The gains in performance probably won’t outweigh the computational cost here. Therefore, we decided to use the default setting unigram only.
-- min_df – this parameter is used to ignore terms that have a document frequency strictly lower than the given min-df value. To remove rare/uncommon words, we set min_df to 100.
+- min_df – this parameter is used to ignore terms that have a document frequency strictly lower than the given min-df value. To remove rare/uncommon words, we set min_df to 100.  
 ### Model training and evaluation
-The LDA model from Sickit-learn is used in model training. We have altered a few parameters to optimize the training process, including:  
+The LDA model from Sickit-learn is used in model training. We have altered a few parameters to optimize the training process, including:
 - Setting learning_method to “online”. According to the official documentation, it is better to use “online” for better speed if the data size is large.
 - Setting n_jobs to 15 to implement multi-core processing to speed up the training process.
-One key parameter to tune in here is the n_components parameter which specifies the number of themes/topics we want to extract from the model. To find the best value, we started with the value of 2, evaluate the result and then adjust the parameter again until we find the best value. pyLDAvis package will be used to evaluate the model performance. pyLDAvis provide an intertopic distance map (via multidimensional scaling) to visualize the extracted topics. The rule of thumb is here is to find the output that has a max value of n_components but the topics are further apart from each other on the map.   
+One key parameter to tune in here is the n_components parameter which specifies the number of themes/topics we want to extract from the model. To find the best value, we started with the value of 2, evaluate the result and then adjust the parameter again until we find the best value. pyLDAvis package will be used to evaluate the model performance. pyLDAvis provide an intertopic distance map (via multidimensional scaling) to visualize the extracted topics. The rule of thumb is here is to find the output that has a max value of n_components but the topics are further apart from each other on the map.
 It is also worth mentioning that we have tried to evaluate the model using log-likelihood and perplexity scores. These metrics were perceived as the most popular metrics is measuring the performance of the model where the log-likelihood higher the better and perplexity is lower the better. We found that the model with the lowest n_component always performs the best on these matrics. As a result, we decided to rely on the intertopic distance map and human judgment for evaluation.  
 Since we have a large dataset, training the model using the full data set will need approx. ~30 mins for a single run. Therefore, we decided to use 10% of the data to find the best n_components value first. As a result, we landed at 8 topics for both Singapore reviews dataset and Australia reviews dataset. The pyLDAvis intertopic distance map and the top 10 keywords per topic are shown below:  
 *Topic modeling of Singapore reviews with n_components = 8*  
@@ -228,7 +228,7 @@ Below chart were created based on the dominant topic assignment approach as desc
 In general, the food delivery app reviews from Singapore and Australia shared some commonalities where order placing is the most concerned topic in both reviews. Interestingly, Singapore reviewers tend to have more interest/concern on the app overall UI/functions, whereas Australian users tend to be more interested/concerned on the delivery aspects in general.  
 
 ## Failure Analysis
-During the topic modeling task, there are a few issues that we need to be aware of:  
+During the topic modeling task, there are a few issues that we need to be aware of:
 - Some topics are highly related to each other but are still identified as 2 separate topics in the model. For example, topic 2 and topic 5 in the Singapore review model. They are describing how good the app is but using a slightly different expression. Another example would be topic 5 and 6 in the Australia dataset. By looking at the keywords, these topics are highly relevant to each other. topic 5 has a keyword ‘quick’ and topic 6 has a keyword ‘fast’. These 2 words are the same in the food delivery domain, but LDA model could not merge these words.
 - We noticed that there is a considerable amount of non-English reviews in the dataset that we were not able to filter out because of no packages that can filter it out with a high accuracy level. Also, many non-English reviews contain English text which makes it difficult to identify it.
 - We were not able to assign a theme to topic 8 in the Singapore reviews model, as the top 10 key terms there seem irrelevant to each other at all.
