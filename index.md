@@ -166,13 +166,13 @@ The figure below shows a few examples of misclassifications under Logistic Regre
 We can see that our Singapore dataset contains many reviews that are not in English; however, this would not impact the model performance. To illustrate the impact of non-English reviews, we rerun the same algorithms on the dataset, but with non-English reviews filtered out, using SpaCy’s spacy_langdetect module. While there seems to be a slight bump in F1-score for some algorithms, the increase in both F1-score and accuracy isn’t significant, even though the language detector has found at least 30% of the reviews to be non-English. It’s likely that many of the non-English tokens do not achieve the minimum frequency set during the TF-IDF stage, and get filtered out.   
 For SVM &  RandomForest algorithms, applying stopwords removal degraded the performance slightly. One possible explanation is that when removing some words from the list of common English stopwords, such as ‘no’ and ‘not’, the sentiment of a sentence can be completely changed. For example,  
 
-<p align="center"><img src='images/misclassifications.png' alt='images/misclassifications.png'></p>
+<p align="center"><img src='images/remove_stopwords.png' alt='images/remove_stopwords.png'></p>
 
 The original review which explicitly stated the disappointment towards this app has been twisted into a neutral, or even slightly positive tone.  
 In some other misclassifications, we can see that certain reviews contain negation. For example, a customer may write “No good” instead of “Bad”. This is a potential downside of the Bag-of-words approach, where tokens are not considered in a particular context. Including bigrams and unigrams has mitigated some of these cases, but there are possibly more cases that are not captured.   
 Last but not least, misclassifications could be due to a customer’s way of ranking. This especially happens around the 3-star ratings, where a customer may not necessarily express a positive sentiment, but decides to give a high rating anyway. For instance:  
 
-<p align="center"><img src='images/misclassifications.png' alt='images/misclassifications.png'></p>
+<p align="center"><img src='images/neutral_review.png' alt='images/neutral_review.png'></p>
 
 This is a review in the test dataset that all three models fail to predict correctly. The actual label of this review is positive, however, by reading this, it is noticeable that this has a neutral to the negative tone. The problem behind this is that people sometimes express mixed feelings about an app yet give an acceptable rating generously, which creates a gap between the actual sentiment and rating. A properly labeled training dataset could help to mitigate this problem, although, in reality, it is challenging to create a domain-specific, labeled dataset without involving significant human effort.
 
